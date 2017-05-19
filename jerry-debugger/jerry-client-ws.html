@@ -13,26 +13,62 @@ body {
 
 input {
   margin-top: 10px;
-  width: 650px;
+  width: 80%;
 }
 
 textarea {
-  width: 750px;
+  width: 80%;
   margin-top: 30px;
   resize: none;
 }
+#left-side{
+  width: 70%;
+  float: left;
+}
+
+#right-side{
+  width: 30%;
+  float: left;
+}
+ul
+{
+  text-align: left;
+}
+.inline
+{
+  display: inline;
+}
+
 </style>
 </head>
 <body>
-<h2>JerryScript HTML (WebSocket) Debugger Client</h2>
 <div class="container">
-  <div>
-    <textarea readonly rows="16" id="log"></textarea>
+  <div id = "left-side">
+    <h2>JerryScript HTML (WebSocket) Debugger Client</h2>
+    <div>
+      <textarea readonly rows="16" id="log"></textarea>
+    </div>
+    <p role="alert">Getting help: type <b>help</b> in the command line below.</p>
+    <div>
+      <input id="command" rows="1" type="text" onkeypress="debuggerCommand(event); return true;" autofocus>
+    </div>
   </div>
-  <p role="alert">Getting help: type <b>help</b> in the command line below.</p>
-  <div>
-    <input id="command" rows="1" type="text" onkeypress="debuggerCommand(event); return true;">
-  <div>
+  <div id = "right-side">
+    <h2>Memory statistic</h2>
+    <div id = "all">
+  		<div>Total usage: <div class = "allocated_bytes inline"></div>/<div class = "inline" id ="max_heap_size"></div> B</div>
+ 		  <progress id = "bar" max="100" value="0"></progress>
+ 		  <div id = "actualUsage"></div>
+      <ul>
+          <li>Allocated bytes: <div class = "allocated_bytes inline"></div> B</li>
+          <li>Byte code bytes: <div class = "inline" id ="byte_code_bytes"></div> B</li>
+          <li>String bytes: <div class = "inline" id ="string_bytes"></div> B</li>
+          <li>Object bytes: <div class = "inline" id ="object_bytes"></div> B</li>
+          <li>Property bytes: <div class = "inline" id ="property_bytes"></div> B</li>
+      </ul>
+
+    </div>
+  </div>
 </div>
 <script>
 var JERRY_DEBUGGER_CONFIGURATION = 1;
@@ -798,7 +834,17 @@ function DebuggerClient(address)
         appendLog("String bytes: " + messagedata[2]);
         appendLog("Object bytes: " + messagedata[3]);
         appendLog("Property bytes: " + messagedata[4]);
-        appendLog("Heap size: " + messagedata[5]);
+
+        document.getElementById("bar").value = (messagedata[0]/messagedata[5])*100*100;
+
+        document.getElementsByClassName("allocated_bytes")[0].innerHTML = messagedata[0];
+        document.getElementsByClassName("allocated_bytes")[1].innerHTML = messagedata[0];
+        document.getElementById("byte_code_bytes").innerHTML = messagedata[1];
+        document.getElementById("string_bytes").innerHTML = messagedata[2];
+        document.getElementById("object_bytes").innerHTML = messagedata[3];
+        document.getElementById("property_bytes").innerHTML = messagedata[4];
+        document.getElementById("max_heap_size").innerHTML = messagedata[5];
+
 
         return;
       }
