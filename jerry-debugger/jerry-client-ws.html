@@ -5,6 +5,8 @@
 <title>
 JerryScript HTML (WebSocket) Debugger Client
 </title>
+<script type="text/javascript" src="./canvasjs.min.js"></script>
+
 <style>
 body {
   background-color: #feffd6;
@@ -13,61 +15,31 @@ body {
 
 input {
   margin-top: 10px;
-  width: 80%;
+  width: 90%;
 }
 
 textarea {
-  width: 80%;
+  width: 90%;
   margin-top: 30px;
   resize: none;
 }
-#left-side{
-  width: 70%;
-  float: left;
-}
-
-#right-side{
-  width: 30%;
-  float: left;
-}
-ul
+#chartContainer
 {
-  text-align: left;
-}
-.inline
-{
-  display: inline;
+  margin-top: 30px;
+  height: 300px;
+  width: 90%
 }
 
 </style>
 </head>
 <body>
-<div class="container">
-  <div id = "left-side">
-    <h2>JerryScript HTML (WebSocket) Debugger Client</h2>
-    <div>
-      <textarea readonly rows="16" id="log"></textarea>
-    </div>
-    <p role="alert">Getting help: type <b>help</b> in the command line below.</p>
-    <div>
-      <input id="command" rows="1" type="text" onkeypress="debuggerCommand(event); return true;" autofocus>
-    </div>
+  <h2>JerryScript HTML (WebSocket) Debugger Client</h2>
+  <div>
+    <textarea readonly rows="16" id="log"></textarea>
   </div>
-  <div id = "right-side">
-    <h2>Memory statistic</h2>
-    <div id = "all">
-  		<div>Total usage: <div class = "allocated_bytes inline"></div>/<div class = "inline" id ="max_heap_size"></div> B</div>
- 		  <progress id = "bar" max="100" value="0"></progress>
- 		  <div id = "actualUsage"></div>
-      <ul>
-          <li>Allocated bytes: <div class = "allocated_bytes inline"></div> B</li>
-          <li>Byte code bytes: <div class = "inline" id ="byte_code_bytes"></div> B</li>
-          <li>String bytes: <div class = "inline" id ="string_bytes"></div> B</li>
-          <li>Object bytes: <div class = "inline" id ="object_bytes"></div> B</li>
-          <li>Property bytes: <div class = "inline" id ="property_bytes"></div> B</li>
-      </ul>
-
-    </div>
+  <p role="alert">Getting help: type <b>help</b> in the command line below.</p>
+  <div>
+    <input id="command" rows="1" type="text" onkeypress="debuggerCommand(event); return true;" autofocus>
   </div>
 </div>
 <script>
@@ -148,6 +120,7 @@ function DebuggerClient(address)
   var nextBreakpointIndex = 1;
   var backtraceFrame = 0;
   var evalResult = null;
+  var loopDraw = 0;
 
   function assert(expr)
   {
@@ -387,6 +360,7 @@ function DebuggerClient(address)
     {
       socket = null;
       debuggerObj = null;
+      clearInterval(loopDraw);
       appendLog("Connection closed.");
     }
   }
@@ -590,6 +564,116 @@ function DebuggerClient(address)
       return returnValue;
   }
 
+  function drawChart(allocated_bytes, string_bytes, object_bytes, property_bytes, byte_code_bytes, message)
+  {
+
+    var actualTime = new Date().getTime();
+    var actualTimeDateFormat = new Date(actualTime);
+
+    /* These are the "real" debugger information, delete the comments to try it*/
+    /*
+    var messagedata = decodeMessage("IIIII", message, 1);
+    allocated_bytes.push({x: actualTimeDateFormat, y: messagedata[0]  });
+    byte_code_bytes.push({x: actualTimeDateFormat, y: messagedata[1]  });
+    string_bytes.push({x: actualTimeDateFormat, y: messagedata[2]  });
+    object_bytes.push({x: actualTimeDateFormat, y: messagedata[3]  });
+    property_bytes.push({x: actualTimeDateFormat, y: messagedata[4]  });
+    */
+    allocated_bytes.push({x: actualTimeDateFormat, y: 120 + Math.floor((Math.random() * 40) + 1)  });
+    byte_code_bytes.push({x: actualTimeDateFormat, y: 40 + Math.floor((Math.random() * 20) + 1)  });
+    string_bytes.push({x: actualTimeDateFormat, y: 35 + Math.floor((Math.random() * 10) + 1)  });
+    object_bytes.push({x: actualTimeDateFormat, y: 25 + Math.floor((Math.random() * 20) + 1)  });
+    property_bytes.push({x: actualTimeDateFormat, y: 20 + Math.floor((Math.random() * 40) + 1)  });
+
+
+    var chart = new CanvasJS.Chart("chartContainer",
+      {
+          title: {
+              text: "Memory Usage"
+          },
+          animationEnabled: false,
+          zoomEnabled:true,
+          zoomType: "xy",
+          axisX:{
+            valueFormatString: "HH:mm:ss:f",
+            viewportMinimum: new Date(actualTime - 4000),
+            //minimum: new Date(actualTime - 8000),
+            labelAngle: -70
+          },
+
+          legend: {
+              verticalAlign: "bottom",
+              horizontalAlign: "center"
+          },
+
+          data: [
+          {
+              name: "byte_code_bytes",
+              showInLegend: true,
+              legendMarkerType: "square",
+              type: "stackedArea",
+              color :"rgba(211,19,14,.8)",
+              markerSize: 0,
+
+              dataPoints: byte_code_bytes
+          },
+          {
+              name: "string_bytes",
+              showInLegend: true,
+              legendMarkerType: "square",
+              type: "stackedArea",
+              markerSize: 0,
+            color :"rgba(95,53,87,.8)",
+
+              dataPoints: string_bytes
+          },
+          {
+              name: "object_bytes",
+              showInLegend: true,
+              legendMarkerType: "square",
+              type: "stackedArea",
+              markerSize: 0,
+            color: "rgba(60,84,151,.9)",
+
+              dataPoints: object_bytes
+          },
+          {
+              name: "property_bytes",
+              showInLegend: true,
+              legendMarkerType: "square",
+              type: "stackedArea",
+              markerSize: 0,
+            color: "rgba(22,115,211,.9)",
+
+              dataPoints: property_bytes
+          },
+          {
+              name: "allocated_bytes",
+              showInLegend: true,
+              legendMarkerType: "square",
+              type: "stackedArea",
+              markerSize: 0,
+            color: "rgba(60,84,151,.9)",
+
+              dataPoints: allocated_bytes
+          }],
+        legend: {
+          cursor:"pointer",
+          itemclick : function(e){
+            if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible){
+              e.dataSeries.visible = false;
+            }
+            else{
+              e.dataSeries.visible = true;
+            }
+            chart.render();
+          }
+        }
+      });
+
+  chart.render();
+  }
+
   this.encodeMessage = encodeMessage;
 
   function ParseSource()
@@ -606,7 +690,7 @@ function DebuggerClient(address)
                    source: "",
                    lines: [],
                    offsets: [] }];
-    var newFunctions = { };
+    var newFunctions = { }
 
     this.receive = function(message)
     {
@@ -700,7 +784,7 @@ function DebuggerClient(address)
           lines = {}
           offsets = {}
 
-          func.firstBreakpointLine = func.lines[0];
+          func.firstBreakpointline = func.lines[0];
           func.firstBreakpointOffset = func.offsets[0];
 
           for (var i = 0; i < func.lines.length; i++)
@@ -827,24 +911,34 @@ function DebuggerClient(address)
 
       case JERRY_DEBUGGER_MEMSTATS_RECEIVE:
       {
-        var messagedata = decodeMessage("IIIIII", message, 1);
+        if(loopDraw != 0)
+        {
+          clearInterval(loopDraw);
+        }
+        if(document.getElementById("chartContainer"))
+        {
+          document.getElementById("chartContainer").remove();
+        }
 
-        appendLog("Allocated bytes: " + messagedata[0]);
-        appendLog("Byte code bytes: " + messagedata[1]);
-        appendLog("String bytes: " + messagedata[2]);
-        appendLog("Object bytes: " + messagedata[3]);
-        appendLog("Property bytes: " + messagedata[4]);
+        var chartContainer = document.createElement('div');
+        chartContainer.id = 'chartContainer';
+        chartContainer.className = 'block';
+        document.getElementsByTagName('body')[0].appendChild(chartContainer);
 
-        document.getElementById("bar").value = (messagedata[0]/messagedata[5])*100*100;
+        var allocated_bytes = [];
+        var string_bytes = [];
+        var object_bytes = [];
+        var property_bytes = [];
+        var byte_code_bytes = [];
 
-        document.getElementsByClassName("allocated_bytes")[0].innerHTML = messagedata[0];
-        document.getElementsByClassName("allocated_bytes")[1].innerHTML = messagedata[0];
-        document.getElementById("byte_code_bytes").innerHTML = messagedata[1];
-        document.getElementById("string_bytes").innerHTML = messagedata[2];
-        document.getElementById("object_bytes").innerHTML = messagedata[3];
-        document.getElementById("property_bytes").innerHTML = messagedata[4];
-        document.getElementById("max_heap_size").innerHTML = messagedata[5];
+        function refreshChart()
+        {
+          drawChart(allocated_bytes, string_bytes, object_bytes, property_bytes, byte_code_bytes, message);
+        }
 
+        loopDraw = setInterval(refreshChart, 1000);
+
+        console.log(loopDraw);
 
         return;
       }
@@ -982,7 +1076,7 @@ function DebuggerClient(address)
 
         if (func.name == str)
         {
-          insertBreakpoint(func.lines[func.firstBreakpointLine]);
+          insertBreakpoint(func.lines[func.firstBreakpointline]);
           found = true;
         }
       }
