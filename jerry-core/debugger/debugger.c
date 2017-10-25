@@ -135,6 +135,35 @@ jerry_debugger_send_backtrace (uint8_t *recv_buffer_p) /**< pointer the the rece
 } /* jerry_debugger_send_backtrace */
 
 /**
+ *  Throw an error, and continue running the engine.
+ */
+static bool
+jerry_debugger_send_throw (const lit_utf8_byte_t *throw_string_p,
+                           size_t throw_string_size)
+{
+  JERRY_ASSERT (JERRY_CONTEXT (debugger_flags) & JERRY_DEBUGGER_CONNECTED);
+  JERRY_ASSERT (!(JERRY_CONTEXT (debugger_flags) & JERRY_DEBUGGER_VM_IGNORE));
+
+  JERRY_CONTEXT (debugger_flags) = (uint8_t) (JERRY_CONTEXT (debugger_flags) | JERRY_DEBUGGER_VM_IGNORE);
+  ecma_value_t result = ecma_op_eval_chars_buffer (throw_string_p, throw_string_size, true, false);
+  JERRY_CONTEXT (debugger_flags) = (uint8_t) (JERRY_CONTEXT (debugger_flags) & ~JERRY_DEBUGGER_VM_IGNORE);
+
+  ecma_value_t to_string_value = ecma_op_to_string (result);
+  ecma_free_value (result);
+  result = to_string_value;
+  ecma_value_t message = result;
+  ecma_string_t *string_p = ecma_get_string_from_value (message);
+
+  ECMA_STRING_TO_UTF8_STRING (string_p, buffer_p, buffer_size);
+  bool success = jerry_debugger_send_string (JERRY_DEBUGGER_THROW_RESULT, JERRY_DEBUGGER_NO_SUBTYPE, buffer_p, buffer_size);
+  ECMA_FINALIZE_UTF8_STRING (buffer_p, buffer_size);
+
+  ecma_free_value (message);
+
+  return success;
+} /* jerry_debugger_send_throw */
+
+/**
  * Send result of evaluated expression.
  *
  * @return true - if no error is occured
@@ -463,6 +492,33 @@ jerry_debugger_process_message (uint8_t *recv_buffer_p, /**< pointer the the rec
 
       JERRY_CONTEXT (debugger_flags)  = debugger_flags;
       return true;
+    }
+
+    case JERRY_DEBUGGER_THROW:
+    {
+      if (message_size < sizeof (jerry_debugger_receive_eval_first_t) + 1)
+      {
+        jerry_port_log (JERRY_LOG_LEVEL_ERROR, "Invalid message size\n");
+        jerry_debugger_close_connection ();
+        return false;
+      }
+
+      JERRY_DEBUGGER_RECEIVE_BUFFER_AS (jerry_debugger_receive_eval_first_t, eval_first_p);
+
+      uint32_t eval_size;
+      memcpy (&eval_size, eval_first_p->eval_size, sizeof (uint32_t));
+
+      if (eval_size <= JERRY_DEBUGGER_MAX_RECEIVE_SIZE - sizeof (jerry_debugger_receive_eval_first_t))
+      {
+        if (eval_size != message_size - sizeof (jerry_debugger_receive_eval_first_t))
+        {
+          jerry_port_log (JERRY_LOG_LEVEL_ERROR, "Invalid message size\n");
+          jerry_debugger_close_connection ();
+          return false;
+        }
+
+        return jerry_debugger_send_throw ((lit_utf8_byte_t *) (eval_first_p + 1), eval_size);
+      }
     }
 
     case JERRY_DEBUGGER_EVAL:

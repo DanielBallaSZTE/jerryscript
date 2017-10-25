@@ -51,6 +51,8 @@ JERRY_DEBUGGER_EVAL_RESULT_END = 22
 JERRY_DEBUGGER_WAIT_FOR_SOURCE = 23
 JERRY_DEBUGGER_OUTPUT_RESULT = 24
 JERRY_DEBUGGER_OUTPUT_RESULT_END = 25
+JERRY_DEBUGGER_THROW_RESULT = 26
+JERRY_DEBUGGER_THROW_RESULT_END = 27
 
 # Subtypes of eval
 JERRY_DEBUGGER_EVAL_OK = 1
@@ -80,6 +82,8 @@ JERRY_DEBUGGER_NEXT = 12
 JERRY_DEBUGGER_GET_BACKTRACE = 13
 JERRY_DEBUGGER_EVAL = 14
 JERRY_DEBUGGER_EVAL_PART = 15
+JERRY_DEBUGGER_THROW = 16
+JERRY_DEBUGGER_THROW_PART = 17
 
 MAX_BUFFER_SIZE = 128
 WEBSOCKET_BINARY_FRAME = 2
@@ -455,6 +459,10 @@ class DebuggerPrompt(Cmd):
         return
 
     do_ms = do_memstats
+
+    def do_throw(self, args):
+        """ Throw an error and continue """
+        self.send_string(args, JERRY_DEBUGGER_THROW)
 
     def store_client_sources(self, args):
         self.client_sources = args
@@ -1181,6 +1189,32 @@ def main():
         elif buffer_type == JERRY_DEBUGGER_WAIT_FOR_SOURCE:
             prompt.send_client_source()
 
+        elif buffer_type in [JERRY_DEBUGGER_THROW_RESULT,
+                             JERRY_DEBUGGER_THROW_RESULT_END]:
+
+            message = b""
+            msg_type = buffer_type
+
+            while True:
+                if buffer_type == JERRY_DEBUGGER_THROW_RESULT_END:
+                    subtype = ord(data[-1])
+                    message += data[3:-1]
+                    print("xd2");
+                    break
+                else:
+                    message += data[3:]
+                    print("xd");
+
+                data = debugger.get_message(True)
+                buffer_type = ord(data[2])
+                buffer_size = ord(data[1]) - 1
+
+                if buffer_type not in [msg_type, msg_type + 1]:
+                    raise Exception("Invalid data caught")
+
+            print(message);
+
+            prompt.cmdloop();
 
         else:
             raise Exception("Unknown message")
