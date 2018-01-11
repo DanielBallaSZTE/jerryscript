@@ -51,6 +51,8 @@ JERRY_DEBUGGER_EVAL_RESULT_END = 22
 JERRY_DEBUGGER_WAIT_FOR_SOURCE = 23
 JERRY_DEBUGGER_OUTPUT_RESULT = 24
 JERRY_DEBUGGER_OUTPUT_RESULT_END = 25
+JERRY_DEBUGGER_STHROW = 26
+JERRY_DEBUGGER_STHROW_END = 27
 
 # Subtypes of eval
 JERRY_DEBUGGER_EVAL_OK = 1
@@ -80,6 +82,8 @@ JERRY_DEBUGGER_NEXT = 12
 JERRY_DEBUGGER_GET_BACKTRACE = 13
 JERRY_DEBUGGER_EVAL = 14
 JERRY_DEBUGGER_EVAL_PART = 15
+JERRY_DEBUGGER_THROW = 16
+JERRY_DEBUGGER_THROW_PART = 17
 
 MAX_BUFFER_SIZE = 128
 WEBSOCKET_BINARY_FRAME = 2
@@ -430,6 +434,10 @@ class DebuggerPrompt(Cmd):
         self.send_string(args, JERRY_DEBUGGER_EVAL)
 
     do_e = do_eval
+
+    def do_throw(self, args):
+        """ Throw an exception """
+        self.send_string(args, JERRY_DEBUGGER_THROW)
 
     def do_exception(self, args):
         """ Config the exception handler module """
@@ -1123,12 +1131,15 @@ def main():
 
         elif buffer_type in [JERRY_DEBUGGER_EVAL_RESULT,
                              JERRY_DEBUGGER_EVAL_RESULT_END,
+                             JERRY_DEBUGGER_STHROW,
+                             JERRY_DEBUGGER_STHROW_END,
                              JERRY_DEBUGGER_OUTPUT_RESULT,
                              JERRY_DEBUGGER_OUTPUT_RESULT_END]:
             message = b""
             msg_type = buffer_type
             while True:
                 if buffer_type in [JERRY_DEBUGGER_EVAL_RESULT_END,
+                                   JERRY_DEBUGGER_STHROW_END,
                                    JERRY_DEBUGGER_OUTPUT_RESULT_END]:
                     subtype = ord(data[-1])
                     message += data[3:-1]
@@ -1163,6 +1174,9 @@ def main():
                 else:
                     print(message)
 
+                prompt.cmdloop()
+            elif buffer_type == JERRY_DEBUGGER_STHROW_END:
+                print(message)
                 prompt.cmdloop()
 
         elif buffer_type == JERRY_DEBUGGER_MEMSTATS_RECEIVE:

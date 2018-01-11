@@ -2529,6 +2529,14 @@ vm_loop (vm_frame_ctx_t *frame_ctx_p) /**< frame context */
 
           frame_ctx_p->byte_code_p = byte_code_start_p;
 
+          if (ECMA_IS_VALUE_ERROR (JERRY_CONTEXT (error_value)))
+          {
+            jerry_port_log(JERRY_LOG_LEVEL_DEBUG, "GOT_ERROR\n");
+            result = ECMA_VALUE_ERROR;
+            left_value = ECMA_VALUE_UNDEFINED;
+            goto error;
+          }
+
           if ((JERRY_CONTEXT (debugger_flags) & JERRY_DEBUGGER_VM_STOP)
               && (JERRY_CONTEXT (debugger_stop_context) == NULL
                   || JERRY_CONTEXT (debugger_stop_context) == JERRY_CONTEXT (vm_top_context_p)))

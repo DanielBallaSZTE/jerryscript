@@ -124,6 +124,8 @@ typedef enum
   JERRY_DEBUGGER_WAIT_FOR_SOURCE = 23, /**< engine waiting for a source code */
   JERRY_DEBUGGER_OUTPUT_RESULT = 24, /**< output sent by the program to the debugger */
   JERRY_DEBUGGER_OUTPUT_RESULT_END = 25, /**< last output result data */
+  JERRY_DEBUGGER_STHROW = 26,
+  JERRY_DEBUGGER_STHROW_END = 27,
 
   /* Messages sent by the client to server. */
 
@@ -147,6 +149,8 @@ typedef enum
   JERRY_DEBUGGER_GET_BACKTRACE = 13, /**< get backtrace */
   JERRY_DEBUGGER_EVAL = 14, /**< first message of evaluating a string */
   JERRY_DEBUGGER_EVAL_PART = 15, /**< next message of evaluating a string */
+  JERRY_DEBUGGER_THROW = 16,
+  JERRY_DEBUGGER_THROW_PART = 17,
 } jerry_debugger_header_type_t;
 
 /**

@@ -21,6 +21,10 @@
 #include "ecma-objects.h"
 #include "jcontext.h"
 #include "lit-char-helpers.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef JERRY_DEBUGGER
 
@@ -207,6 +211,37 @@ jerry_debugger_send_eval (const lit_utf8_byte_t *eval_string_p, /**< evaluated s
 
   return success;
 } /* jerry_debugger_send_eval */
+
+
+static bool
+jerry_debugger_send_throw (const lit_utf8_byte_t *eval_string_p,
+                           size_t eval_string_size)
+{
+  JERRY_ASSERT (JERRY_CONTEXT (debugger_flags) & JERRY_DEBUGGER_CONNECTED);
+  JERRY_ASSERT (!(JERRY_CONTEXT (debugger_flags) & JERRY_DEBUGGER_VM_IGNORE));
+
+  JERRY_CONTEXT (debugger_flags) = (uint8_t) (JERRY_CONTEXT (debugger_flags) | JERRY_DEBUGGER_VM_IGNORE);
+  ecma_value_t result = ecma_op_eval_chars_buffer (eval_string_p, eval_string_size, true, false);
+  JERRY_CONTEXT (debugger_flags) = (uint8_t) (JERRY_CONTEXT (debugger_flags) & ~JERRY_DEBUGGER_VM_IGNORE);
+
+  if (ECMA_IS_VALUE_ERROR (result))
+  {
+    ecma_free_value (result);
+    return jerry_debugger_send_string (JERRY_DEBUGGER_STHROW, JERRY_DEBUGGER_NO_SUBTYPE, (const uint8_t*) "Error: can't set error", 23);
+  }
+
+  ecma_value_t error = ecma_raise_type_error(ECMA_ERR_MSG ("topkek."));
+  JERRY_CONTEXT (error_value) = error;
+  bool asd = ecma_is_value_string (error);
+  bool asd2 = ecma_is_value_object (error);
+
+  JERRY_UNUSED (asd);
+  JERRY_UNUSED (asd2);
+  ecma_free_value (error);
+  ecma_free_value (result);
+
+  return jerry_debugger_send_string (JERRY_DEBUGGER_STHROW, JERRY_DEBUGGER_NO_SUBTYPE, (const uint8_t*) "Error set successfully", 23);
+} /* jerry_debugger_send_throw */
 
 /**
  * Suspend execution for a given time.
@@ -505,6 +540,48 @@ jerry_debugger_process_message (uint8_t *recv_buffer_p, /**< pointer the the rec
 
       *message_data_p = eval_uint8_data_p;
       *expected_message_type_p = JERRY_DEBUGGER_EVAL_PART;
+      return true;
+    }
+
+    case JERRY_DEBUGGER_THROW:
+    {
+      if (message_size < sizeof (jerry_debugger_receive_eval_first_t) + 1)
+      {
+        jerry_port_log (JERRY_LOG_LEVEL_ERROR, "Invalid message size\n");
+        jerry_debugger_close_connection ();
+        return false;
+      }
+
+      JERRY_DEBUGGER_RECEIVE_BUFFER_AS (jerry_debugger_receive_eval_first_t, msg_first_p);
+      uint32_t msg_size;
+      memcpy (&msg_size, msg_first_p->eval_size, sizeof (uint32_t));
+
+      if (msg_size <= JERRY_DEBUGGER_MAX_RECEIVE_SIZE - sizeof (jerry_debugger_receive_eval_first_t))
+      {
+        if (msg_size != message_size - sizeof (jerry_debugger_receive_eval_first_t))
+        {
+          jerry_port_log (JERRY_LOG_LEVEL_ERROR, "Invalid message size\n");
+          jerry_debugger_close_connection ();
+          return false;
+        }
+        return jerry_debugger_send_throw ((lit_utf8_byte_t *) (msg_first_p + 1), msg_size);
+      }
+
+      jerry_debugger_uint8_data_t *msg_uint8_data_p;
+      size_t msg_data_size = sizeof (jerry_debugger_uint8_data_t) + msg_size;
+
+      msg_uint8_data_p = (jerry_debugger_uint8_data_t *) jmem_heap_alloc_block (msg_data_size);
+
+      msg_uint8_data_p->uint8_size = msg_size;
+      msg_uint8_data_p->uint8_offset = (uint32_t) (message_size - sizeof (jerry_debugger_receive_eval_first_t));
+
+      lit_utf8_byte_t *msg_string_p = (lit_utf8_byte_t *) (msg_uint8_data_p + 1);
+      memcpy (msg_string_p,
+              (lit_utf8_byte_t *) (msg_first_p + 1),
+              message_size - sizeof (jerry_debugger_receive_eval_first_t));
+
+      *message_data_p = msg_uint8_data_p;
+      *expected_message_type_p = JERRY_DEBUGGER_THROW_PART;
       return true;
     }
 
